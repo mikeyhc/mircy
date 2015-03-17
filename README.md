@@ -1,0 +1,2 @@
+# mircy
+IRC Bot Library
