@@ -1,9 +1,13 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Network.Mircy where
 
-import Control.Exception
-import Network.Mircy.Internal
-import Network.Socket
-import System.IO
+import           Control.Exception
+import           Control.Monad.Trans
+import qualified Data.ByteString.Char8 as B
+import           Network.Mircy.Internal
+import           Network.Socket
+import           System.IO
 
 type Port = String
 
@@ -23,3 +27,18 @@ runMircy hostname port prog = do
         h <- socketToHandle sock ReadWriteMode
         hSetBuffering h LineBuffering
         return h
+
+getIRCMessage :: Mircy IRCMessage 
+getIRCMessage = do
+    h <- getIRCHandle
+    l <- lift $ B.hGetLine h
+    let noticeForm = B.tail $ B.dropWhile (/= ' ') l
+    return $ if "NOTICE" `B.isPrefixOf` noticeForm
+        then handleNotice . B.tail $ B.dropWhile (/= ' ') noticeForm
+        else IRCUnknown l
+
+handleNotice :: B.ByteString -> IRCMessage
+handleNotice l = let noticetype = B.takeWhile (/= ' ') l
+                     extract = B.init . B.tail . B.tail . B.dropWhile (/= ' ') 
+                     message = extract l
+                 in IRCNotice noticetype message
