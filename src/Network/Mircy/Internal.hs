@@ -30,7 +30,6 @@ instance (Monad m) => MonadMircy (MircyT m) where
 data IRCMessage = IRCReply Int B.ByteString
                 | IRCError Int B.ByteString
                 | IRCNotice B.ByteString B.ByteString
-                | IRCPrivMsg B.ByteString
                 | IRCUnknown B.ByteString
     deriving (Eq, Show)
 
