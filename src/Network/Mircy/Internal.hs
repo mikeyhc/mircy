@@ -10,7 +10,7 @@ import qualified Data.ByteString as B
 import           System.IO
 
 newtype MircyT m a = MircyT (ReaderT Handle m a)
-    deriving (Functor, Applicative, Monad, MonadTrans)
+    deriving (Functor, Applicative, Monad, MonadTrans, MonadIO)
 
 type Mircy a = MircyT IO a
 
