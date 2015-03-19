@@ -8,7 +8,7 @@ module Network.Mircy
     , IRCCommand (..)
 
     -- class
-    , MonadMircy
+    , MonadMircy (..)
 
     -- functions
     , runMircyT
