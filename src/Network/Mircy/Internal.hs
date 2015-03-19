@@ -27,10 +27,11 @@ class MonadMircy m where
 instance (Monad m) => MonadMircy (MircyT m) where
     getIRCHandle = ask
 
-data IRCMessage = IRCReply Int B.ByteString
-                | IRCError Int B.ByteString
+data IRCMessage = IRCReply Int B.ByteString B.ByteString
+                | IRCError Int B.ByteString B.ByteString
                 | IRCNotice B.ByteString B.ByteString
                 | IRCUnknown B.ByteString
+                | IRCMsg B.ByteString B.ByteString B.ByteString B.ByteString
     deriving (Eq, Show)
 
 data IRCCommand = IRCUser B.ByteString B.ByteString B.ByteString B.ByteString

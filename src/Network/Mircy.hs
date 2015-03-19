@@ -17,6 +17,7 @@ module Network.Mircy
     , sendIRCCommand
     )where
 
+import           Control.Applicative
 import           Control.Exception
 import           Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
@@ -33,7 +34,7 @@ runMircy hostname port prog = do
     sock <- socket (addrFamily serveraddr) Stream defaultProtocol
     setSocketOption sock KeepAlive 1
     bracket (doConnect sock serveraddr)
-            (\_ -> sClose sock)
+            hClose
             (runMircyT prog)
   where
     doConnect :: Socket -> AddrInfo -> IO Handle
@@ -46,17 +47,64 @@ runMircy hostname port prog = do
 getIRCMessage :: Mircy IRCMessage
 getIRCMessage = do
     h <- getIRCHandle
-    l <- lift $ B.hGetLine h
-    let noticeForm = B.tail $ B.dropWhile (/= ' ') l
-    return $ if "NOTICE" `B.isPrefixOf` noticeForm
-        then readNotice . B.tail $ B.dropWhile (/= ' ') noticeForm
-        else IRCUnknown l
+    l <- lift $ B.init <$> B.hGetLine h
+    if "PING" `B.isPrefixOf` l
+        then doPong (B.drop 5 l) >> getIRCMessage
+        else return $ handleIRCMessage l
+
+doPong :: B.ByteString -> Mircy ()
+doPong reply = do
+    h <- getIRCHandle
+    lift . B.hPutStrLn h $ B.append "PONG " reply
+
+handleIRCMessage :: B.ByteString -> IRCMessage
+handleIRCMessage msg
+    | "NOTICE" `B.isPrefixOf` replyForm = readNotice $ dropWord replyForm
+    | "PRIVMSG" `B.isPrefixOf` privFrom = readPrivMsg msg
+    | code >= '0' && code < '4'         = readReply replyForm
+    | code == '4'                       = readError replyForm
+    | otherwise                         = IRCUnknown msg
+  where
+    replyForm = B.tail $ B.dropWhile (/= ' ') msg
+    privFrom  = dropWord msg
+    code      = B.head replyForm
+
+dropWord :: B.ByteString -> B.ByteString
+dropWord = B.dropWhile (== ' ') . B.dropWhile (/= ' ')
+
+takeWord :: B.ByteString -> B.ByteString
+takeWord = B.takeWhile (/= ' ')
 
 readNotice :: B.ByteString -> IRCMessage
 readNotice l = let noticetype = B.takeWhile (/= ' ') l
-                   extract = B.init . B.tail . B.tail . B.dropWhile (/= ' ')
-                   message = extract l
+                   message    = B.tail $ dropWord l
                in IRCNotice noticetype message
+
+readReply :: B.ByteString -> IRCMessage
+readReply l = let (code, command, message) = getReplyParts l
+              in  IRCReply code command message
+
+readError :: B.ByteString -> IRCMessage
+readError l = let (code, command, message) = getReplyParts l
+              in  IRCError code command message
+
+getReplyParts :: B.ByteString -> (Int, B.ByteString, B.ByteString)
+getReplyParts l = let code    = read . B.unpack $ B.takeWhile (/= ' ') l
+                      temp    = dropWord l
+                      command = B.takeWhile (/= ' ') temp
+                      temp2   = dropWord temp
+                      message = if B.head temp2 == ':' then B.tail temp2
+                                                       else temp2
+                  in (code, command, message)
+
+readPrivMsg :: B.ByteString -> IRCMessage
+readPrivMsg msg = let nick    = B.takeWhile (/= '!') $ B.tail msg
+                      temp    = B.tail $ B.dropWhile (/= '!') msg
+                      user    = takeWord temp
+                      temp2   = dropWord $ dropWord temp
+                      chan    = takeWord temp2
+                      message = B.tail $ dropWord temp2
+                  in IRCMsg nick user chan message
 
 sendIRCCommand :: IRCCommand -> Mircy ()
 sendIRCCommand (IRCUser name mode host real) = sendIRCCommand'
