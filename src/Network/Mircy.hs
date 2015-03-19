@@ -19,12 +19,12 @@ module Network.Mircy
 
 import           Control.Applicative
 import           Control.Exception
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
 import           Network.Mircy.Internal
 import           Network.Socket
-import           System.IO
-
+import           System.IO 
 type Port = String
 
 runMircy :: HostName -> Port -> Mircy a -> IO a
@@ -44,18 +44,18 @@ runMircy hostname port prog = do
         hSetBuffering h LineBuffering
         return h
 
-getIRCMessage :: Mircy IRCMessage
+getIRCMessage :: (MonadMircy m, MonadIO m) => m IRCMessage
 getIRCMessage = do
     h <- getIRCHandle
-    l <- lift $ B.init <$> B.hGetLine h
+    l <- liftIO $ B.init <$> B.hGetLine h
     if "PING" `B.isPrefixOf` l
         then doPong (B.drop 5 l) >> getIRCMessage
         else return $ handleIRCMessage l
 
-doPong :: B.ByteString -> Mircy ()
+doPong :: (MonadMircy m, MonadIO m) => B.ByteString -> m ()
 doPong reply = do
     h <- getIRCHandle
-    lift . B.hPutStrLn h $ B.append "PONG " reply
+    liftIO . B.hPutStrLn h $ B.append "PONG " reply
 
 handleIRCMessage :: B.ByteString -> IRCMessage
 handleIRCMessage msg
@@ -106,7 +106,7 @@ readPrivMsg msg = let nick    = B.takeWhile (/= '!') $ B.tail msg
                       message = B.tail $ dropWord temp2
                   in IRCMsg nick user chan message
 
-sendIRCCommand :: IRCCommand -> Mircy ()
+sendIRCCommand :: (MonadMircy m, MonadIO m) => IRCCommand -> m ()
 sendIRCCommand (IRCUser name mode host real) = sendIRCCommand'
     $ foldl1 B.append [ "USER ", name, " ", mode, " ", host, " : ", real ]
 sendIRCCommand (IRCNick nick) = sendIRCCommand' $ B.append "NICK " nick
@@ -114,5 +114,5 @@ sendIRCCommand (IRCJoin chan) = sendIRCCommand' $ B.append "JOIN " chan
 sendIRCCommand (IRCPrivMsg chan msg) = sendIRCCommand'
     $ foldl1 B.append [ "PRIVMSG ", chan, " ", msg ]
 
-sendIRCCommand' :: B.ByteString -> Mircy ()
-sendIRCCommand' m = getIRCHandle >>= lift . (`B.hPutStrLn` m)
+sendIRCCommand' :: (MonadMircy m, MonadIO m) => B.ByteString -> m ()
+sendIRCCommand' m = getIRCHandle >>= liftIO . (`B.hPutStrLn` m)
