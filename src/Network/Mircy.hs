@@ -1,6 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Network.Mircy where
+module Network.Mircy
+    -- datatypes
+    ( MircyT (..)
+    , Mircy
+    , IRCMessage (..)
+    , IRCCommand (..)
+
+    -- class
+    , MonadMircy
+
+    -- functions
+    , runMircyT
+    , runMircy
+    , getIRCMessage
+    , sendIRCCommand
+    )where
 
 import           Control.Exception
 import           Control.Monad.Trans
@@ -28,17 +43,28 @@ runMircy hostname port prog = do
         hSetBuffering h LineBuffering
         return h
 
-getIRCMessage :: Mircy IRCMessage 
+getIRCMessage :: Mircy IRCMessage
 getIRCMessage = do
     h <- getIRCHandle
     l <- lift $ B.hGetLine h
     let noticeForm = B.tail $ B.dropWhile (/= ' ') l
     return $ if "NOTICE" `B.isPrefixOf` noticeForm
-        then handleNotice . B.tail $ B.dropWhile (/= ' ') noticeForm
+        then readNotice . B.tail $ B.dropWhile (/= ' ') noticeForm
         else IRCUnknown l
 
-handleNotice :: B.ByteString -> IRCMessage
-handleNotice l = let noticetype = B.takeWhile (/= ' ') l
-                     extract = B.init . B.tail . B.tail . B.dropWhile (/= ' ') 
-                     message = extract l
-                 in IRCNotice noticetype message
+readNotice :: B.ByteString -> IRCMessage
+readNotice l = let noticetype = B.takeWhile (/= ' ') l
+                   extract = B.init . B.tail . B.tail . B.dropWhile (/= ' ')
+                   message = extract l
+               in IRCNotice noticetype message
+
+sendIRCCommand :: IRCCommand -> Mircy ()
+sendIRCCommand (IRCUser name mode host real) = sendIRCCommand'
+    $ foldl1 B.append [ "USER ", name, " ", mode, " ", host, " : ", real ]
+sendIRCCommand (IRCNick nick) = sendIRCCommand' $ B.append "NICK " nick
+sendIRCCommand (IRCJoin chan) = sendIRCCommand' $ B.append "JOIN " chan
+sendIRCCommand (IRCPrivMsg chan msg) = sendIRCCommand'
+    $ foldl1 B.append [ "PRIVMSG ", chan, " ", msg ]
+
+sendIRCCommand' :: B.ByteString -> Mircy ()
+sendIRCCommand' m = getIRCHandle >>= lift . (`B.hPutStrLn` m)

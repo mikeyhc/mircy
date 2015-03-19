@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, 
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances,
              GeneralizedNewtypeDeriving #-}
 
 module Network.Mircy.Internal where
@@ -15,7 +15,7 @@ newtype MircyT m a = MircyT (ReaderT Handle m a)
 type Mircy a = MircyT IO a
 
 runMircyT :: MircyT m a -> Handle -> m a
-runMircyT (MircyT r) = runReaderT r 
+runMircyT (MircyT r) = runReaderT r
 
 instance (Monad m) => MonadReader Handle (MircyT m) where
     ask = MircyT ask
