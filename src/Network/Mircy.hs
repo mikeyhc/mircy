@@ -61,6 +61,7 @@ handleIRCMessage :: B.ByteString -> IRCMessage
 handleIRCMessage msg
     | "NOTICE" `B.isPrefixOf` replyForm = readNotice $ dropWord replyForm
     | "PRIVMSG" `B.isPrefixOf` privFrom = readPrivMsg msg
+    | "JOIN" `B.isPrefixOf` privFrom    = readJoinMsg privFrom
     | code >= '0' && code < '4'         = readReply replyForm
     | code == '4'                       = readError replyForm
     | otherwise                         = IRCUnknown msg
@@ -106,6 +107,9 @@ readPrivMsg msg = let nick    = B.takeWhile (/= '!') $ B.tail msg
                       message = B.tail $ dropWord temp2
                   in IRCMsg nick user chan message
 
+readJoinMsg :: B.ByteString -> IRCMessage
+readJoinMsg = IRCJoinMsg . B.tail . dropWord 
+
 sendIRCCommand :: (MonadMircy m, MonadIO m) => IRCCommand -> m ()
 sendIRCCommand (IRCUser name mode host real) = sendIRCCommand'
     $ foldl1 B.append [ "USER ", name, " ", mode, " ", host, " : ", real ]
@@ -118,7 +122,6 @@ sendIRCCommand (IRCQuit _)           = sendIRCCommand' "QUIT"
 sendIRCCommand (IRCWho (Just (w, o))) = sendIRCCommand'
     $ foldl1 B.append $ [ "WHO ", w ] ++ [ "o" | o ]
 sendIRCCommand (IRCWho _)             = sendIRCCommand' "WHO"
-
 
 sendIRCCommand' :: (MonadMircy m, MonadIO m) => B.ByteString -> m ()
 sendIRCCommand' m = getIRCHandle >>= liftIO . (`B.hPutStrLn` m)
