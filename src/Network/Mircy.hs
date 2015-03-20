@@ -113,6 +113,12 @@ sendIRCCommand (IRCNick nick) = sendIRCCommand' $ B.append "NICK " nick
 sendIRCCommand (IRCJoin chan) = sendIRCCommand' $ B.append "JOIN " chan
 sendIRCCommand (IRCPrivMsg chan msg) = sendIRCCommand'
     $ foldl1 B.append [ "PRIVMSG ", chan, " ", msg ]
+sendIRCCommand (IRCQuit (Just msg))  = sendIRCCommand' $ B.append "QUIT " msg
+sendIRCCommand (IRCQuit _)           = sendIRCCommand' "QUIT"
+sendIRCCommand (IRCWho (Just (w, o))) = sendIRCCommand'
+    $ foldl1 B.append $ [ "WHO ", w ] ++ [ "o" | o ]
+sendIRCCommand (IRCWho _)             = sendIRCCommand' "WHO"
+
 
 sendIRCCommand' :: (MonadMircy m, MonadIO m) => B.ByteString -> m ()
 sendIRCCommand' m = getIRCHandle >>= liftIO . (`B.hPutStrLn` m)

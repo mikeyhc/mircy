@@ -38,3 +38,5 @@ data IRCCommand = IRCUser B.ByteString B.ByteString B.ByteString B.ByteString
                 | IRCNick B.ByteString
                 | IRCJoin B.ByteString
                 | IRCPrivMsg B.ByteString B.ByteString
+                | IRCQuit (Maybe B.ByteString)
+                | IRCWho (Maybe (B.ByteString, Bool))
