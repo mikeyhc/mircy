@@ -60,14 +60,15 @@ doPong reply = do
 handleIRCMessage :: B.ByteString -> IRCMessage
 handleIRCMessage msg
     | "NOTICE" `B.isPrefixOf` replyForm = readNotice $ dropWord replyForm
-    | "PRIVMSG" `B.isPrefixOf` privFrom = readPrivMsg msg
-    | "JOIN" `B.isPrefixOf` privFrom    = readJoinMsg privFrom
+    | "PRIVMSG" `B.isPrefixOf` privForm = readPrivMsg msg
+    | "JOIN" `B.isPrefixOf` privForm    = readJoinMsg privForm
+    | "NICK" `B.isPrefixOf` privForm    = readNickMsg msg
     | code >= '0' && code < '4'         = readReply replyForm
     | code == '4'                       = readError replyForm
     | otherwise                         = IRCUnknown msg
   where
     replyForm = B.tail $ B.dropWhile (/= ' ') msg
-    privFrom  = dropWord msg
+    privForm  = dropWord msg
     code      = B.head replyForm
 
 dropWord :: B.ByteString -> B.ByteString
@@ -109,6 +110,13 @@ readPrivMsg msg = let nick    = B.takeWhile (/= '!') $ B.tail msg
 
 readJoinMsg :: B.ByteString -> IRCMessage
 readJoinMsg = IRCJoinMsg . B.tail . dropWord 
+
+readNickMsg :: B.ByteString -> IRCMessage
+readNickMsg msg = let oldnick = B.takeWhile (/= '!') $ B.tail msg
+                      temp1   = B.tail $ B.dropWhile (/= '!') msg
+                      user    = takeWord temp1
+                      newnick = B.tail . dropWord $ dropWord temp1
+                  in IRCNickMsg user oldnick newnick
 
 sendIRCCommand :: (MonadMircy m, MonadIO m) => IRCCommand -> m ()
 sendIRCCommand (IRCUser name mode host real) = sendIRCCommand'

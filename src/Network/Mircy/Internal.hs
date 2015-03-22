@@ -33,6 +33,7 @@ data IRCMessage = IRCReply Int B.ByteString B.ByteString
                 | IRCUnknown B.ByteString
                 | IRCMsg B.ByteString B.ByteString B.ByteString B.ByteString
                 | IRCJoinMsg B.ByteString
+                | IRCNickMsg B.ByteString B.ByteString B.ByteString
     deriving (Eq, Show)
 
 data IRCCommand = IRCUser B.ByteString B.ByteString B.ByteString B.ByteString
