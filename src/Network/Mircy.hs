@@ -61,7 +61,7 @@ handleIRCMessage :: B.ByteString -> IRCMessage
 handleIRCMessage msg
     | "NOTICE" `B.isPrefixOf` replyForm = readNotice $ dropWord replyForm
     | "PRIVMSG" `B.isPrefixOf` privForm = readPrivMsg msg
-    | "JOIN" `B.isPrefixOf` privForm    = readJoinMsg privForm
+    | "JOIN" `B.isPrefixOf` privForm    = readJoinMsg msg
     | "NICK" `B.isPrefixOf` privForm    = readNickMsg msg
     | code >= '0' && code < '4'         = readReply replyForm
     | code == '4'                       = readError replyForm
@@ -109,14 +109,19 @@ readPrivMsg msg = let nick    = B.takeWhile (/= '!') $ B.tail msg
                   in IRCMsg nick user chan message
 
 readJoinMsg :: B.ByteString -> IRCMessage
-readJoinMsg = IRCJoinMsg . B.tail . dropWord 
+readJoinMsg msg = let (user, nick, chan)  = readMsgParts msg
+                  in  IRCJoinMsg user nick chan
 
 readNickMsg :: B.ByteString -> IRCMessage
-readNickMsg msg = let oldnick = B.takeWhile (/= '!') $ B.tail msg
-                      temp1   = B.tail $ B.dropWhile (/= '!') msg
-                      user    = takeWord temp1
-                      newnick = B.tail . dropWord $ dropWord temp1
-                  in IRCNickMsg user oldnick newnick
+readNickMsg msg = let (user, oldnick, nick) = readMsgParts msg
+                  in  IRCNickMsg user oldnick nick
+
+readMsgParts :: B.ByteString -> (B.ByteString, B.ByteString, B.ByteString)
+readMsgParts msg = let nick    = B.takeWhile (/= '!') $ B.tail msg
+                       temp1   = B.tail $ B.dropWhile (/= '!') msg
+                       user    = takeWord temp1
+                       message = B.tail . dropWord $ dropWord temp1
+                   in (user, nick, message)
 
 sendIRCCommand :: (MonadMircy m, MonadIO m) => IRCCommand -> m ()
 sendIRCCommand (IRCUser name mode host real) = sendIRCCommand'
