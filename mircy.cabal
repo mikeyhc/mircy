@@ -4,12 +4,12 @@
 name:                mircy
 version:             0.1.0.0
 synopsis:            An IRC Bot library
--- description:         
+-- description:
 license:             BSD3
 license-file:        LICENSE
 author:              mikeyhc
 maintainer:          mikeyhc@atmosia.net
--- copyright:           
+-- copyright:
 category:            Network
 build-type:          Simple
 extra-source-files:  README.md
@@ -18,11 +18,11 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Network.Mircy
   other-modules:       Network.Mircy.Internal
-  -- other-extensions:    
-  build-depends:       base         >=4.7       && <4.8,
+  -- other-extensions:
+  build-depends:       base         >=4.9       && <4.10,
                        bytestring   >= 0.10.4.0 && <0.11.0.0,
                        mtl          >=2.2.1     && <2.3.0,
                        network      >=2.6.0.2   && <2.7.0.0,
-                       transformers >=0.4.2.0   && <0.5.0.0
+                       transformers >=0.5.0.0   && <0.6.0.0
   hs-source-dirs:      src
   default-language:    Haskell2010
